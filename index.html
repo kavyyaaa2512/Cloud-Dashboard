@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud Sustainability Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0f0a;
+    --surface: #111611;
+    --surface2: #182018;
+    --border: #1e2e1e;
+    --green: #00ff88;
+    --green-dim: #00cc6a;
+    --green-dark: #003322;
+    --green-muted: rgba(0,255,136,0.08);
+    --amber: #ffcc00;
+    --red: #ff4444;
+    --blue: #44aaff;
+    --text: #e8f4e8;
+    --text-dim: #6a8a6a;
+    --text-muted: #3a5a3a;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .logo-area {}
+  .logo-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--green);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .logo-tag::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  h1 span { color: var(--green); }
+  .header-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    max-width: 400px;
+  }
+  .live-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 12px;
+    border: 1px solid var(--green);
+    color: var(--green);
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px;
+    width: fit-content;
+  }
+  .tab {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 16px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: var(--green);
+    color: #000;
+    font-weight: 700;
+  }
+  .tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+  /* Section panels */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Input grid */
+  .input-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .field {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem 1.1rem;
+    transition: border-color 0.2s;
+  }
+  .field:focus-within { border-color: var(--green); }
+  .field label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .field input, .field select {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--mono);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    width: 100%;
+    -moz-appearance: textfield;
+  }
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .field select { font-size: 0.95rem; cursor: pointer; }
+  .field select option { background: #111; }
+  .unit {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .field-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 5px;
+  }
+
+  /* Results row */
+  .results-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem 1.1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--green);
+    opacity: 0.5;
+  }
+  .result-card.highlight::before { opacity: 1; }
+  .result-card.warn::before { background: var(--amber); }
+  .result-card.danger::before { background: var(--red); }
+  .result-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .result-value {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1;
+  }
+  .result-card.warn .result-value { color: var(--amber); }
+  .result-card.danger .result-value { color: var(--red); }
+  .result-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* Chart area */
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 640px) { .chart-row { grid-template-columns: 1fr; } }
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.25rem;
+  }
+  .chart-box h3 {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* Comparison table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 1.5rem;
+  }
+  .compare-table th {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:hover td { background: var(--green-muted); }
+  .best { color: var(--green); font-weight: 700; }
+  .worst { color: var(--red); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    border-radius: 2px;
+    font-family: var(--mono);
+  }
+  .badge-green { background: var(--green-dark); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+  .badge-amber { background: rgba(255,204,0,0.1); color: var(--amber); border: 1px solid rgba(255,204,0,0.3); }
+  .badge-red { background: rgba(255,68,68,0.1); color: var(--red); border: 1px solid rgba(255,68,68,0.3); }
+
+  /* Savings bar */
+  .savings-list { display: flex; flex-direction: column; gap: 10px; }
+  .saving-row { display: flex; align-items: center; gap: 10px; }
+  .saving-name { font-family: var(--mono); font-size: 11px; color: var(--text-dim); width: 170px; flex-shrink: 0; }
+  .saving-track { flex: 1; background: var(--surface2); border-radius: 2px; height: 14px; overflow: hidden; }
+  .saving-fill { height: 100%; background: var(--green); border-radius: 2px; display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; transition: width 0.6s ease; }
+  .saving-fill span { font-family: var(--mono); font-size: 9px; color: #000; font-weight: 700; }
+
+  /* Token panel */
+  .token-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+
+  /* Carbon meter */
+  .carbon-meter {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .meter-ring {
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+  }
+  .meter-info { flex: 1; min-width: 200px; }
+  .meter-value {
+    font-family: var(--mono);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .meter-label { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
+  .meter-equiv { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+  /* Calc button */
+  .calc-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 10px 24px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .calc-btn:hover { background: var(--green-dim); transform: translateY(-1px); }
+  .calc-btn:active { transform: translateY(0); }
+
+  /* Section heading */
+  .section-heading {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--green);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+  /* Footnote */
+  .footnote { font-size: 11px; color: var(--text-muted); margin-top: 1rem; font-style: italic; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo-area">
+      <div class="logo-tag">Live Calculations</div>
+      <h1>Cloud <span>Sustainability</span><br>Calculator</h1>
+      <div class="header-desc">Estimate cloud costs, AI token energy usage, and compare providers in real time.</div>
+    </div>
+    <div class="live-badge">v1.0 · 2025</div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('cloud')">☁ Cloud Costs</button>
+    <button class="tab" onclick="switchTab('ai')">⚡ AI Tokens</button>
+    <button class="tab" onclick="switchTab('compare')">⊞ Compare</button>
+  </div>
+
+  <!-- ═══════════════ TAB 1: CLOUD COSTS ═══════════════ -->
+  <div class="panel active" id="tab-cloud">
+    <div class="section-heading">// Storage Calculator</div>
+    <div class="input-grid">
+      <div class="field">
+        <label>Storage Amount</label>
+        <div class="field-row">
+          <input type="number" id="storage-gb" value="50" min="0" oninput="calcCloud()">
+          <span class="unit">GB</span>
+        </div>
+        <div class="field-hint">How many GB of data you store per month</div>
+      </div>
+      <div class="field">
+        <label>Monthly Read Requests</label>
+        <div class="field-row">
+          <input type="number" id="read-ops" value="1000000" min="0" oninput="calcCloud()">
+          <span class="unit">ops</span>
+        </div>
+        <div class="field-hint">Each customer page load = several reads</div>
+      </div>
+      <div class="field">
+        <label>Monthly Write Requests</label>
+        <div class="field-row">
+          <input type="number" id="write-ops" value="50000" min="0" oninput="calcCloud()">
+          <span class="unit">ops</span>
+        </div>
+        <div class="field-hint">Uploads, saves, updates to storage</div>
+      </div>
+      <div class="field">
+        <label>Data Retrieved (Egress)</label>
+        <div class="field-row">
+          <input type="number" id="egress-gb" value="100" min="0" oninput="calcCloud()">
+          <span class="unit">GB/mo</span>
+        </div>
+        <div class="field-hint">Data sent out to users each month</div>
+      </div>
+    </div>
+
+    <div class="section-heading">// Compute Calculator</div>
+    <div class="input-grid">
+      <div class="field">
+        <label>Compute Hours / Month</label>
+        <div class="field-row">
+          <input type="number" id="compute-hours" value="720" min="0" oninput="calcCloud()">
+          <span class="unit">hrs</span>
+        </div>
+        <div class="field-hint">720 = 1 server running 24/7 all month</div>
+      </div>
+      <div class="field">
+        <label>Number of Servers</label>
+        <div class="field-row">
+          <input type="number" id="num-servers" value="2" min="1" oninput="calcCloud()">
+          <span class="unit">×</span>
+        </div>
+        <div class="field-hint">Virtual machines / instances</div>
+      </div>
+      <div class="field">
+        <label>Pricing Model</label>
+        <div class="field-row">
+          <select id="pricing-model" onchange="calcCloud()">
+            <option value="ondemand">On-Demand</option>
+            <option value="reserved">Reserved (1 yr)</option>
+            <option value="spot">Spot / Preemptible</option>
+          </select>
+        </div>
+        <div class="field-hint">Reserved saves ~37%, Spot saves ~70%</div>
+      </div>
+      <div class="field">
+        <label>Provider</label>
+        <div class="field-row">
+          <select id="provider" onchange="calcCloud()">
+            <option value="aws">AWS</option>
+            <option value="gcp">Google Cloud</option>
+            <option value="azure">Azure</option>
+            <option value="cloudflare">Cloudflare</option>
+          </select>
+        </div>
+        <div class="field-hint">Prices based on 2 vCPU / 4 GB RAM tier</div>
+      </div>
+    </div>
+
+    <div class="results-row" id="cloud-results"></div>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>// Cost breakdown</h3>
+        <div class="chart-wrap"><canvas id="breakdownChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>// Provider comparison (your inputs)</h3>
+        <div class="chart-wrap"><canvas id="providerChart"></canvas></div>
+      </div>
+    </div>
+    <div class="footnote">* Prices are approximate averages based on public pricing as of 2025. Actual costs may vary by region, tier, and discounts.</div>
+  </div>
+
+  <!-- ═══════════════ TAB 2: AI TOKENS ═══════════════ -->
+  <div class="panel" id="tab-ai">
+    <div class="section-heading">// AI Energy & Token Calculator</div>
+    <div class="input-grid">
+      <div class="field">
+        <label>Monthly AI Queries</label>
+        <div class="field-row">
+          <input type="number" id="ai-queries" value="100000" min="0" oninput="calcAI()">
+          <span class="unit">queries</span>
+        </div>
+        <div class="field-hint">Total AI requests per month</div>
+      </div>
+      <div class="field">
+        <label>Avg Input Tokens / Query</label>
+        <div class="field-row">
+          <input type="number" id="input-tokens" value="500" min="0" oninput="calcAI()">
+          <span class="unit">tokens</span>
+        </div>
+        <div class="field-hint">~1 token = 0.75 words in your prompt</div>
+      </div>
+      <div class="field">
+        <label>Avg Output Tokens / Query</label>
+        <div class="field-row">
+          <input type="number" id="output-tokens" value="300" min="0" oninput="calcAI()">
+          <span class="unit">tokens</span>
+        </div>
+        <div class="field-hint">Tokens in the AI response</div>
+      </div>
+      <div class="field">
+        <label>Model Size</label>
+        <div class="field-row">
+          <select id="model-size" onchange="calcAI()">
+            <option value="small">Small (7B params)</option>
+            <option value="medium" selected>Medium (13B params)</option>
+            <option value="large">Large (70B params)</option>
+            <option value="xlarge">XL (175B — GPT-3 scale)</option>
+          </select>
+        </div>
+        <div class="field-hint">Larger = smarter but far more energy</div>
+      </div>
+    </div>
+
+    <div class="section-heading">// Optimisation Strategies Applied</div>
+    <div class="input-grid">
+      <div class="field">
+        <label>Semantic Cache Rate</label>
+        <div class="field-row">
+          <input type="range" id="cache-rate" min="0" max="60" value="30" oninput="calcAI(); document.getElementById('cache-val').textContent=this.value+'%'" style="width:100%; accent-color: var(--green);">
+        </div>
+        <div class="field-hint">Cache hit rate — <span id="cache-val">30%</span> queries served from cache</div>
+      </div>
+      <div class="field">
+        <label>Prompt Compression</label>
+        <div class="field-row">
+          <input type="range" id="compress-rate" min="0" max="40" value="20" oninput="calcAI(); document.getElementById('compress-val').textContent=this.value+'%'" style="width:100%; accent-color: var(--green);">
+        </div>
+        <div class="field-hint">Token reduction via compression — <span id="compress-val">20%</span></div>
+      </div>
+      <div class="field">
+        <label>Batch Inference</label>
+        <div class="field-row">
+          <select id="batching" onchange="calcAI()">
+            <option value="0">None</option>
+            <option value="25" selected>Enabled (~25% saving)</option>
+            <option value="35">Aggressive (~35% saving)</option>
+          </select>
+        </div>
+        <div class="field-hint">Group multiple requests into one call</div>
+      </div>
+      <div class="field">
+        <label>Quantisation</label>
+        <div class="field-row">
+          <select id="quant" onchange="calcAI()">
+            <option value="0">None (FP32)</option>
+            <option value="30" selected>INT8 (~30% saving)</option>
+            <option value="50">INT4 (~50% saving)</option>
+          </select>
+        </div>
+        <div class="field-hint">Reduce model weight precision</div>
+      </div>
+    </div>
+
+    <div class="results-row" id="ai-results"></div>
+
+    <div class="carbon-meter" id="carbon-meter">
+      <svg class="meter-ring" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="#1e2e1e" stroke-width="10"/>
+        <circle id="meter-arc" cx="50" cy="50" r="40" fill="none" stroke="#00ff88"
+          stroke-width="10" stroke-linecap="round"
+          stroke-dasharray="251.2" stroke-dashoffset="100"
+          transform="rotate(-90 50 50)" style="transition: stroke-dashoffset 0.6s ease;"/>
+        <text x="50" y="54" text-anchor="middle" font-family="Space Mono" font-size="13" font-weight="700" fill="#00ff88" id="meter-pct">—</text>
+      </svg>
+      <div class="meter-info">
+        <div class="meter-value" id="carbon-val">—</div>
+        <div class="meter-label">CO₂ equivalent per month (baseline model)</div>
+        <div class="meter-equiv" id="carbon-equiv">Loading...</div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>// Token energy breakdown</h3>
+        <div class="chart-wrap"><canvas id="tokenChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>// Optimisation savings stack</h3>
+        <div style="padding-top:0.5rem;" id="savings-bars"></div>
+      </div>
+    </div>
+    <div class="footnote">* Energy estimates based on published research (Patterson et al. 2022). 1M tokens ≈ 0.001–0.01 kWh depending on model size and hardware efficiency. CO₂ factor: 0.385 kg/kWh (global avg grid).</div>
+  </div>
+
+  <!-- ═══════════════ TAB 3: COMPARE ═══════════════ -->
+  <div class="panel" id="tab-compare">
+    <div class="section-heading">// Provider Comparison (your workload)</div>
+    <div class="input-grid">
+      <div class="field">
+        <label>Storage (GB)</label>
+        <div class="field-row">
+          <input type="number" id="cmp-storage" value="500" min="0" oninput="calcCompare()">
+          <span class="unit">GB</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Compute Instances</label>
+        <div class="field-row">
+          <input type="number" id="cmp-servers" value="4" min="1" oninput="calcCompare()">
+          <span class="unit">×</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Egress / month</label>
+        <div class="field-row">
+          <input type="number" id="cmp-egress" value="10000" min="0" oninput="calcCompare()">
+          <span class="unit">GB</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Pricing Model</label>
+        <div class="field-row">
+          <select id="cmp-model" onchange="calcCompare()">
+            <option value="ondemand">On-Demand</option>
+            <option value="reserved">Reserved</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <table class="compare-table" id="compare-table-el">
+      <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Storage</th>
+          <th>Compute</th>
+          <th>Egress</th>
+          <th>Total/mo</th>
+          <th>Annual</th>
+          <th>Renewable Energy</th>
+          <th>Verdict</th>
+        </tr>
+      </thead>
+      <tbody id="compare-tbody"></tbody>
+    </table>
+
+    <div class="chart-row">
+      <div class="chart-box" style="grid-column: 1 / -1;">
+        <h3>// Total monthly cost comparison</h3>
+        <div class="chart-wrap" style="height:260px;"><canvas id="compareChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-heading">// Sustainability Score</div>
+    <div class="results-row" id="sustain-results"></div>
+
+    <div class="footnote">* Renewable energy percentages from provider 2024 sustainability reports. Google: 90%+, Azure: 85%+, AWS: 65%+, Cloudflare: 70%+.</div>
+  </div>
+
+</div>
+
+<script>
+// ── PRICING DATA ─────────────────────────────────────────────────────────────
+const pricing = {
+  aws: {
+    name: 'AWS', storage: 0.023, readOps: 0.40, writeOps: 5.0, egress: 0.09,
+    compute: { ondemand: 0.0416, reserved: 0.026, spot: 0.013 },
+    renewable: 65, pue: 1.2
+  },
+  gcp: {
+    name: 'Google Cloud', storage: 0.020, readOps: 0.40, writeOps: 5.0, egress: 0.08,
+    compute: { ondemand: 0.0335, reserved: 0.022, spot: 0.01 },
+    renewable: 91, pue: 1.1
+  },
+  azure: {
+    name: 'Azure', storage: 0.018, readOps: 0.40, writeOps: 5.0, egress: 0.087,
+    compute: { ondemand: 0.0416, reserved: 0.025, spot: 0.012 },
+    renewable: 85, pue: 1.15
+  },
+  cloudflare: {
+    name: 'Cloudflare', storage: 0.015, readOps: 0.0, writeOps: 4.50, egress: 0.0,
+    compute: { ondemand: 0.036, reserved: 0.036, spot: 0.036 },
+    renewable: 70, pue: 1.12
+  }
+};
+
+// Energy per 1M tokens (kWh) by model size
+const energyPerMTokens = { small: 0.001, medium: 0.003, large: 0.01, xlarge: 0.03 };
+
+// Chart instances
+let charts = {};
+
+function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+function fmtDec(n, d=2) { return '$' + n.toFixed(d); }
+
+// ── CLOUD COST ───────────────────────────────────────────────────────────────
+function calcCloud() {
+  const gb = +document.getElementById('storage-gb').value || 0;
+  const reads = +document.getElementById('read-ops').value || 0;
+  const writes = +document.getElementById('write-ops').value || 0;
+  const egress = +document.getElementById('egress-gb').value || 0;
+  const hours = +document.getElementById('compute-hours').value || 0;
+  const servers = +document.getElementById('num-servers').value || 1;
+  const model = document.getElementById('pricing-model').value;
+  const prov = document.getElementById('provider').value;
+  const p = pricing[prov];
+
+  const storageCost = gb * p.storage;
+  const opsCost = (reads / 1e6) * p.readOps + (writes / 1e6) * p.writeOps;
+  const egressCost = egress * p.egress;
+  const computeCost = hours * servers * p.compute[model];
+  const total = storageCost + opsCost + egressCost + computeCost;
+
+  document.getElementById('cloud-results').innerHTML = `
+    <div class="result-card"><div class="result-label">Storage Cost</div><div class="result-value">${fmt(storageCost)}</div><div class="result-sub">${gb} GB × $${p.storage}/GB</div></div>
+    <div class="result-card warn"><div class="result-label">Operations Cost</div><div class="result-value" style="color:var(--amber)">${fmt(opsCost)}</div><div class="result-sub">Reads + Writes</div></div>
+    <div class="result-card ${egressCost > 500 ? 'danger' : ''}"><div class="result-label">Egress Cost</div><div class="result-value" style="color:${egressCost === 0 ? 'var(--green)' : egressCost > 500 ? 'var(--red)' : 'var(--amber)'}">${fmt(egressCost)}</div><div class="result-sub">${egress} GB out × $${p.egress}</div></div>
+    <div class="result-card"><div class="result-label">Compute Cost</div><div class="result-value">${fmt(computeCost)}</div><div class="result-sub">${servers} server(s) × ${hours}h</div></div>
+    <div class="result-card highlight"><div class="result-label">Total / Month</div><div class="result-value">${fmt(total)}</div><div class="result-sub">≈ ${fmt(total * 12)} / year</div></div>
+  `;
+
+  // Breakdown donut
+  const breakData = [storageCost, opsCost, egressCost, computeCost].map(v => Math.max(v, 0));
+  if (charts.breakdown) charts.breakdown.destroy();
+  charts.breakdown = new Chart(document.getElementById('breakdownChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Storage', 'Operations', 'Egress', 'Compute'],
+      datasets: [{ data: breakData, backgroundColor: ['#00ff88', '#ffcc00', '#ff4444', '#44aaff'], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#6a8a6a', font: { family: 'Space Mono', size: 10 }, boxWidth: 10, padding: 10 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}` } }
+      }
+    }
+  });
+
+  // Provider bar comparison
+  const allProviders = ['aws','gcp','azure','cloudflare'];
+  const totals = allProviders.map(k => {
+    const pp = pricing[k];
+    return gb*pp.storage + (reads/1e6)*pp.readOps + (writes/1e6)*pp.writeOps + egress*pp.egress + hours*servers*pp.compute[model];
+  });
+  const colors = totals.map((v,i) => allProviders[i] === prov ? '#00ff88' : '#1e3a1e');
+  if (charts.provider) charts.provider.destroy();
+  charts.provider = new Chart(document.getElementById('providerChart'), {
+    type: 'bar',
+    data: {
+      labels: ['AWS','Google Cloud','Azure','Cloudflare'],
+      datasets: [{ label: '$/month', data: totals, backgroundColor: colors, borderRadius: 2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.parsed.y)}/month` } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6a8a6a', font: { family: 'Space Mono', size: 10 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6a8a6a', font: { family: 'Space Mono', size: 10 }, callback: v => '$' + v.toLocaleString() } }
+      }
+    }
+  });
+}
+
+// ── AI TOKEN ENERGY ──────────────────────────────────────────────────────────
+function calcAI() {
+  const queries = +document.getElementById('ai-queries').value || 0;
+  const inputTok = +document.getElementById('input-tokens').value || 0;
+  const outputTok = +document.getElementById('output-tokens').value || 0;
+  const modelSize = document.getElementById('model-size').value;
+  const cacheRate = +document.getElementById('cache-rate').value / 100;
+  const compressRate = +document.getElementById('compress-rate').value / 100;
+  const batchSaving = +document.getElementById('batching').value / 100;
+  const quantSaving = +document.getElementById('quant').value / 100;
+
+  const totalTokensM = (queries * (inputTok + outputTok)) / 1e6;
+  const kwhPerMToken = energyPerMTokens[modelSize];
+  const baseKwh = totalTokensM * kwhPerMToken;
+
+  // Optimised
+  const effectiveQueries = queries * (1 - cacheRate);
+  const effectiveInput = inputTok * (1 - compressRate);
+  const effectiveTokensM = (effectiveQueries * (effectiveInput + outputTok)) / 1e6;
+  let optKwh = effectiveTokensM * kwhPerMToken;
+  optKwh *= (1 - batchSaving) * (1 - quantSaving);
+
+  const saving = baseKwh - optKwh;
+  const savingPct = baseKwh > 0 ? (saving / baseKwh * 100) : 0;
+  const co2Base = baseKwh * 0.385; // kg CO2
+  const co2Opt = optKwh * 0.385;
+
+  // Equivalents
+  const flights = (co2Base / 255).toFixed(2);
+  const equiv = co2Base < 1 ? `${(co2Base*1000).toFixed(0)}g CO₂ — like ${(co2Base/0.255*100).toFixed(0)} km driving` :
+                co2Base < 100 ? `≈ ${flights} London→NYC flight(s) in emissions` :
+                `≈ ${(co2Base / 4600).toFixed(1)} year(s) of car driving`;
+
+  document.getElementById('ai-results').innerHTML = `
+    <div class="result-card"><div class="result-label">Total Tokens / Month</div><div class="result-value">${(totalTokensM).toFixed(1)}M</div><div class="result-sub">${queries.toLocaleString()} queries</div></div>
+    <div class="result-card warn"><div class="result-label">Baseline Energy</div><div class="result-value" style="color:var(--amber)">${baseKwh.toFixed(2)} kWh</div><div class="result-sub">Without optimisation</div></div>
+    <div class="result-card highlight"><div class="result-label">Optimised Energy</div><div class="result-value">${optKwh.toFixed(2)} kWh</div><div class="result-sub">With all strategies</div></div>
+    <div class="result-card"><div class="result-label">Energy Saved</div><div class="result-value">${savingPct.toFixed(0)}%</div><div class="result-sub">${saving.toFixed(2)} kWh saved</div></div>
+    <div class="result-card ${co2Base > 50 ? 'danger' : 'highlight'}"><div class="result-label">CO₂ (baseline)</div><div class="result-value" style="color:${co2Base > 50 ? 'var(--red)' : 'var(--green)'}">${co2Base.toFixed(1)} kg</div><div class="result-sub">→ ${co2Opt.toFixed(1)} kg optimised</div></div>
+  `;
+
+  // Carbon meter arc
+  const pct = Math.min(savingPct / 100, 1);
+  const circumference = 251.2;
+  const offset = circumference * (1 - pct);
+  document.getElementById('meter-arc').style.strokeDashoffset = offset;
+  document.getElementById('meter-pct').textContent = Math.round(savingPct) + '%';
+  document.getElementById('carbon-val').textContent = co2Base.toFixed(1) + ' kg CO₂';
+  document.getElementById('carbon-equiv').textContent = equiv;
+
+  // Token chart
+  if (charts.token) charts.token.destroy();
+  charts.token = new Chart(document.getElementById('tokenChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Input tokens', 'Output tokens', 'Cached (skipped)', 'Compressed'],
+      datasets: [{
+        label: 'Million tokens',
+        data: [
+          (queries * inputTok / 1e6).toFixed(3),
+          (queries * outputTok / 1e6).toFixed(3),
+          (queries * cacheRate * (inputTok+outputTok) / 1e6).toFixed(3),
+          (effectiveQueries * inputTok * compressRate / 1e6).toFixed(3)
+        ],
+        backgroundColor: ['#44aaff','#00ff88','#1e3a1e','#ffcc00'],
+        borderRadius: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6a8a6a', font: { family: 'Space Mono', size: 9 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6a8a6a', font: { family: 'Space Mono', size: 9 }, callback: v => v + 'M' } }
+      }
+    }
+  });
+
+  // Savings bars
+  const strategies = [
+    { name: 'Semantic caching', pct: cacheRate * 100 * 0.6, max: 60 },
+    { name: 'Prompt compression', pct: compressRate * 50, max: 40 },
+    { name: 'Batch inference', pct: batchSaving * 100, max: 35 },
+    { name: 'Quantisation', pct: quantSaving * 100, max: 50 },
+  ];
+  document.getElementById('savings-bars').innerHTML = `<div class="savings-list">${
+    strategies.map(s => `
+      <div class="saving-row">
+        <div class="saving-name">${s.name}</div>
+        <div class="saving-track">
+          <div class="saving-fill" style="width:${Math.round(s.pct / s.max * 100)}%">
+            <span>${Math.round(s.pct)}%</span>
+          </div>
+        </div>
+      </div>`).join('')
+  }</div>`;
+}
+
+// ── COMPARE ──────────────────────────────────────────────────────────────────
+function calcCompare() {
+  const gb = +document.getElementById('cmp-storage').value || 0;
+  const servers = +document.getElementById('cmp-servers').value || 1;
+  const egress = +document.getElementById('cmp-egress').value || 0;
+  const model = document.getElementById('cmp-model').value;
+
+  const hours = 720; // full month
+  const reads = 5e6, writes = 200000;
+
+  const results = ['aws','gcp','azure','cloudflare'].map(k => {
+    const p = pricing[k];
+    const storage = gb * p.storage;
+    const ops = (reads/1e6)*p.readOps + (writes/1e6)*p.writeOps;
+    const eg = egress * p.egress;
+    const compute = hours * servers * p.compute[model];
+    const total = storage + ops + eg + compute;
+    return { key: k, name: p.name, storage, ops, eg, compute, total, renewable: p.renewable, pue: p.pue };
+  });
+
+  const minTotal = Math.min(...results.map(r => r.total));
+  const maxTotal = Math.max(...results.map(r => r.total));
+
+  // Sustainability score = weighted: 40% cost efficiency, 40% renewable, 20% PUE
+  const maxRenew = Math.max(...results.map(r => r.renewable));
+  const minPUE = Math.min(...results.map(r => r.pue));
+
+  results.forEach(r => {
+    const costScore = maxTotal > 0 ? (1 - (r.total - minTotal)/(maxTotal - minTotal)) * 40 : 40;
+    const renewScore = (r.renewable / maxRenew) * 40;
+    const pueScore = (minPUE / r.pue) * 20;
+    r.sustainScore = Math.round(costScore + renewScore + pueScore);
+  });
+
+  const sorted = [...results].sort((a,b) => a.total - b.total);
+
+  document.getElementById('compare-tbody').innerHTML = results.map(r => {
+    const isBest = r.total === minTotal;
+    const isWorst = r.total === maxTotal;
+    const badge = isBest ? '<span class="badge badge-green">BEST</span>' : isWorst ? '<span class="badge badge-red">MOST EXP.</span>' : '';
+    return `<tr>
+      <td style="font-weight:700;color:var(--text)">${r.name}</td>
+      <td>${fmt(r.storage)}</td>
+      <td>${fmt(r.compute)}</td>
+      <td class="${r.eg === 0 ? 'best' : r.eg > 1000 ? 'worst' : ''}">${fmt(r.eg)}</td>
+      <td class="${isBest ? 'best' : isWorst ? 'worst' : ''}">${fmt(r.total)}</td>
+      <td>${fmt(r.total * 12)}</td>
+      <td>${r.renewable}% <span class="badge ${r.renewable >= 85 ? 'badge-green' : r.renewable >= 70 ? 'badge-amber' : 'badge-red'}">${r.renewable >= 85 ? 'GREEN' : r.renewable >= 70 ? 'MID' : 'LOW'}</span></td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+
+  // Compare bar chart
+  if (charts.compare) charts.compare.destroy();
+  const catColors = { aws: '#ffcc00', gcp: '#00ff88', azure: '#44aaff', cloudflare: '#ff8844' };
+  charts.compare = new Chart(document.getElementById('compareChart'), {
+    type: 'bar',
+    data: {
+      labels: results.map(r => r.name),
+      datasets: [
+        { label: 'Storage', data: results.map(r => r.storage), backgroundColor: '#003322', borderRadius: 2 },
+        { label: 'Compute', data: results.map(r => r.compute), backgroundColor: '#004433', borderRadius: 2 },
+        { label: 'Egress', data: results.map(r => r.eg), backgroundColor: '#ff4444', borderRadius: 2 },
+        { label: 'Ops', data: results.map(r => r.ops), backgroundColor: '#1e3a1e', borderRadius: 2 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#6a8a6a', font: { family: 'Space Mono', size: 10 }, boxWidth: 10 } } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { color: '#6a8a6a', font: { family: 'Space Mono', size: 10 } } },
+        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6a8a6a', font: { family: 'Space Mono', size: 10 }, callback: v => '$' + v.toLocaleString() } }
+      }
+    }
+  });
+
+  // Sustainability cards
+  document.getElementById('sustain-results').innerHTML = results.map(r => `
+    <div class="result-card ${r.sustainScore >= 80 ? 'highlight' : r.sustainScore <= 55 ? 'danger' : ''}">
+      <div class="result-label">${r.name}</div>
+      <div class="result-value" style="color:${r.sustainScore >= 80 ? 'var(--green)' : r.sustainScore <= 55 ? 'var(--red)' : 'var(--amber)'}">${r.sustainScore}/100</div>
+      <div class="result-sub">${r.renewable}% renewable · PUE ${r.pue}</div>
+    </div>`).join('');
+}
+
+// ── TAB SWITCH ───────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Init all
+calcCloud();
+calcAI();
+calcCompare();
+</script>
+</body>
+</html>
